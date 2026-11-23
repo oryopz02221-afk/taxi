@@ -1,1 +1,109 @@
+/**
+ * Vercel Serverless Function: /api/plan
+ * package.json의 "type": "module" 환경에 맞춘 ES Module 핸들러입니다.
+ * 환경변수 process.env.GEMINI_API_KEY를 사용하여 Gemini API를 호출합니다.
+ */
 
+export default async function handler(req, res) {
+  // CORS 헤더 설정 (프론트엔드 호출 허용)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Preflight 요청 처리
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // POST 요청만 허용
+  if (req.method !== 'POST') {
+    return res.status(405).json({
+      status: 'error',
+      message: 'Method Not Allowed. POST 요청만 지원합니다.'
+    });
+  }
+
+  // Vercel 환경변수에서 GEMINI_API_KEY 읽기
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({
+      status: 'error',
+      message: '서버에 GEMINI_API_KEY 환경변수가 설정되지 않았습니다.'
+    });
+  }
+
+  try {
+    const {
+      stopName = '연세대 정문',
+      destination = '원주역',
+      buses = [],
+      openPots = [],
+      currentTime = ''
+    } = req.body || {};
+
+    // Gemini에게 전달할 프롬프트 구성
+    const prompt = `
+당신은 강원도 원주시 흥업면(연세대 미래캠퍼스, 한라대, 강릉원주대) 대학생들을 위한 '흥업 탈출 이동 플래너 AI'입니다.
+현재 정류장의 실시간 버스 도착 정보와 모집 중인 택시 동승 팟 현황을 분석하여, 학생이 지금 당장 선택할 수 있는 가장 합리적이고 빠른 이동 전략을 3줄 이내로 간결하고 친근하게 제안해주세요.
+
+[현재 상황 데이터]
+- 현재 시각: ${currentTime || '방금 전'}
+- 출발 정류장: ${stopName}
+- 희망 목적지: ${destination}
+- 실시간 버스 도착 예정: ${buses.length > 0 ? JSON.stringify(buses) : '도착 예정 버스 없음'}
+- 현재 모집중인 택시 팟: ${openPots.length > 0 ? JSON.stringify(openPots) : '모집중인 팟 없음'}
+
+[작성 규칙]
+1. 버스 대기 시간이 20분 이상이거나 버스가 없으면 택시 팟 합류 또는 새 팟 모집을 적극 권장하세요.
+2. 버스 도착이 10분 이내라면 버스 탑승이 가성비가 좋음을 안내하세요.
+3. 이모지를 적절히 활용해 모바일 화면에서 한눈에 읽히도록 작성하세요.
+`.trim();
+
+    // 외부 패키지 의존성 없이 Node 18+ 내장 fetch로 Gemini REST API 호출
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    const response = await fetch(geminiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 300
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorDetail = await response.text();
+      console.error('Gemini API 호출 실패:', response.status, errorDetail);
+      return res.status(response.status).json({
+        status: 'error',
+        message: 'Gemini API 응답 오류가 발생했습니다.',
+        detail: errorDetail
+      });
+    }
+
+    const result = await response.json();
+    const planText =
+      result?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      '현재 버스 배차와 택시 팟 현황을 비교해 가장 빠른 수단을 선택해보세요!';
+
+    return res.status(200).json({
+      status: 'success',
+      plan: planText.trim()
+    });
+  } catch (error) {
+    console.error('api/plan.js 처리 중 예외 발생:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: '이동 플랜 생성 중 서버 오류가 발생했습니다.'
+    });
+  }
+}
