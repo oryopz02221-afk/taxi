@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>흥업 탈출 택시 팟 & 실시간 버스 알리미</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background-color: #f8fafc;
+    }
+    /* 스크롤바 숨김 유틸리티 (모바일 가로 칩 스크롤용) */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased pb-24">
+
+  <!-- 상단 네비게이션 바 -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-2xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+          🚕
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 leading-tight">
+            흥업 탈출 알리미
+          </h1>
+          <p class="text-[11px] text-slate-500 font-medium">실시간 버스 배차 &amp; 택시 동승 팟</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- 현재 연동 상태 뱃지 -->
+        <span id="modeBadge" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+          데모 모드
+        </span>
+        <!-- API/시트 연동 설정 모달 열기 버튼 -->
+        <button onclick="openSettingsModal()" aria-label="API 및 시트 설정" class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 active:scale-95 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-2xl mx-auto px-4 pt-5 space-y-6">
+
+    <!-- ① 섹션 1: TAGO 실시간 버스 도착 정보 -->
+    <section class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold">🚌</span>
+          <h2 class="font-bold text-slate-900 text-sm sm:text-base">실시간 버스 도착 정보 (TAGO)</h2>
+        </div>
+        <button onclick="refreshBusInfo()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition">
+          <svg id="busRefreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          새로고침
+        </button>
+      </div>
+
+      <!-- 흥업 주요 정류장 선택 탭 -->
+      <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3" id="stopSelector">
+        <!-- JS에서 정류장 버튼 렌더링 -->
+      </div>
+
+      <!-- 버스 도착 카드 리스트 -->
+      <div id="busListContainer" class="space-y-2.5">
+        <!-- JS에서 동적 생성 -->
+      </div>
+
+      <!-- AI 최적 이동 플랜 추천 영역 (/api/plan 연동) -->
+      <div class="mt-3.5 pt-3 border-t border-slate-100">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <span>✨ AI 흥업 탈출 플랜</span>
+          </span>
+          <button onclick="requestAiPlan()" id="aiPlanBtn" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white transition active:scale-95">
+            지금 최적 경로 추천받기
+          </button>
+        </div>
+        <div id="aiPlanBox" class="hidden mt-2.5 p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-100 text-xs text-slate-800 leading-relaxed whitespace-pre-line">
+        </div>
+      </div>
+
+      <!-- ② 2단계 핵심 기능: 배차 간격 20분 이상 시 자동 노출되는 택시 팟 유도 배너 -->
+      <div id="taxiAlertBanner" class="hidden mt-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-4 text-white shadow-md">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-md mb-1.5">
+              ⚡ 배차 간격 경고
+            </div>
+            <p id="taxiAlertText" class="text-sm font-bold leading-snug">
+              다음 버스까지 26분 남았습니다! 지금 택시 팟을 모으면 1인당 약 2,750원에 원주역까지 바로 갑니다.
+            </p>
+          </div>
+        </div>
+        <button onclick="openCreateModalWithPreset()" class="mt-3 w-full sm:w-auto bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition active:scale-95">
+          지금 바로 택시 팟 모집하기 →
+        </button>
+      </div>
+    </section>
+
+    <!-- ② 섹션 2: 흥업 탈출 택시 동승 모집 게시판 (Google Sheets 연동) -->
+    <section class="space-y-3.5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+            <span>🚕 택시 동승 팟 모집</span>
+            <span id="potCountBadge" class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">0건</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">원하는 시간대의 팟에 참여하거나 직접 방을 만들어보세요.</p>
+        </div>
+
+        <!-- 상태 필터 (전체 / 모집중만) -->
+        <div class="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-xl self-start">
+          <button onclick="setFilter('OPEN')" id="filterOpenBtn" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition">
+            모집중만
+          </button>
+          <button onclick="setFilter('ALL')" id="filterAllBtn" class="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+            전체보기
+          </button>
+        </div>
+      </div>
+
+      <!-- 목적지 퀵 필터 칩 -->
+      <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1" id="destFilterChips">
+        <button onclick="setDestFilter('ALL')" data-dest="ALL" class="dest-chip active px-3 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-white whitespace-nowrap transition">
+          전체 목적지
+        </button>
+        <button onclick="setDestFilter('원주역')" data-dest="원주역" class="dest-chip px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap transition">
+          🚄 원주역 (~2,750원)
+        </button>
+        <button onclick="setDestFilter('만종역')" data-dest="만종역" class="dest-chip px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap transition">
+          🚄 만종역 (~3,000원)
+        </button>
+        <button onclick="setDestFilter('원주시외버스터미널')" data-dest="원주시외버스터미널" class="dest-chip px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap transition">
+          🚌 시외버스터미널 (~2,375원)
+        </button>
+        <button onclick="setDestFilter('단계동/시내')" data-dest="단계동/시내" class="dest-chip px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap transition">
+          🏙️ 단계동/시내 (~2,250원)
+        </button>
+      </div>
+
+      <!-- 택시 팟 카드 목록 -->
+      <div id="potListContainer" class="space-y-3">
+        <!-- JS에서 렌더링 -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 하단 고정 플로팅 액션 버튼 (택시 팟 만들기) -->
+  <div class="fixed bottom-5 inset-x-0 z-30 px-4 pointer-events-none">
+    <div class="max-w-2xl mx-auto flex justify-end">
+      <button onclick="openCreateModal()" class="pointer-events-auto flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-sm px-5 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/30 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>택시 팟 모집하기</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- [모달 1] 새 택시 팟 등록 모달 -->
+  <div id="createModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-xs p-0 sm:p-4">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-lg font-extrabold text-slate-900">🚕 새 택시 팟 등록</h3>
+        <button onclick="closeCreateModal()" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          ✕
+        </button>
+      </div>
+
+      <form id="createPotForm" onsubmit="handleCreatePot(event)" class="mt-4 space-y-4">
+        <!-- 출발지 선택 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">출발지 (흥업 캠퍼스권)</label>
+          <select id="inputDeparture" required class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-medium focus:bg-white focus:border-indigo-500 focus:outline-none">
+            <option value="연세대 정문">연세대 정문</option>
+            <option value="연세대 백운관 앞">연세대 백운관 앞</option>
+            <option value="한라대 정문">한라대 정문</option>
+            <option value="강릉원주대 정문">강릉원주대 정문</option>
+            <option value="흥업사거리">흥업사거리</option>
+          </select>
+        </div>
+
+        <!-- 목적지 선택 및 예상 요금 자동 안내 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">목적지</label>
+          <select id="inputDestination" onchange="updateFareEstimate()" required class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-medium focus:bg-white focus:border-indigo-500 focus:outline-none">
+            <option value="원주역">원주역 (KTX)</option>
+            <option value="만종역">만종역 (KTX)</option>
+            <option value="원주시외버스터미널">원주시외버스터미널</option>
+            <option value="단계동/시내">단계동 / 시내</option>
+          </select>
+          <p id="fareEstimateText" class="mt-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">
+            💡 예상 총 요금 약 11,000원 (4인 탑승 시 1인당 약 2,750원)
+          </p>
+        </div>
+
+        <!-- 희망 출발 시각 & 모집 인원 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">희망 출발 시각</label>
+            <input type="time" id="inputTargetTime" required class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-medium focus:bg-white focus:border-indigo-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">모집 총원 (본인 포함)</label>
+            <select id="inputMaxPeople" onchange="updateFareEstimate()" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm font-medium focus:bg-white focus:border-indigo-500 focus:outline-none">
+              <option value="4" selected>4명 (최대 절약)</option>
+              <option value="3">3명</option>
+              <option value="2">2명</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 오픈채팅 링크 또는 연락처 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">카카오톡 오픈채팅방 링크 (또는 연락처)</label>
+          <input type="text" id="inputContact" required placeholder="https://open.kakao.com/o/... 또는 인스타/연락처" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm focus:bg-white focus:border-indigo-500 focus:outline-none" />
+          <p class="mt-1 text-[11px] text-slate-400">※ 동승 참여 버튼을 누른 학생들에게만 링크가 공개됩니다.</p>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeCreateModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition">
+            취소
+          </button>
+          <button type="submit" id="submitPotBtn" class="flex-2 w-2/3 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition">
+            등록 완료하기
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- [모달 2] 동승 참여 완료 및 오픈채팅 링크 안내 모달 -->
+  <div id="joinSuccessModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mx-auto mb-3">
+        🎉
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-900">동승 팟 참여가 완료되었습니다!</h3>
+      <p class="text-xs text-slate-500 mt-1">아래 오픈채팅방으로 입장해 출발 위치를 맞춰보세요.</p>
+
+      <div class="mt-4 p-3.5 rounded-2xl bg-slate-100 border border-slate-200 text-left">
+        <span class="text-[11px] font-bold text-slate-500 block mb-1">방장 연락처 / 오픈채팅 링크</span>
+        <div class="flex items-center justify-between gap-2">
+          <code id="joinedContactText" class="text-xs font-bold text-indigo-700 break-all"></code>
+          <button onclick="copyContactLink()" class="shrink-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 active:scale-95 transition">
+            복사
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-5 flex gap-2">
+        <a id="openChatAnchor" href="#" target="_blank" rel="noopener noreferrer" class="hidden flex-1 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold text-xs transition">
+          카카오톡 바로 열기
+        </a>
+        <button onclick="closeJoinModal()" class="flex-1 py-3 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition">
+          확인
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 3] 실제 TAGO API 키 & 구글 Apps Script URL 설정 모달 -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-extrabold text-slate-900">⚙️ 실서비스 API &amp; 구글 시트 연동</h3>
+        <button onclick="closeSettingsModal()" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100">✕</button>
+      </div>
+
+      <div class="mt-4 space-y-4 text-xs">
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 leading-relaxed">
+          값을 비워두면 브라우저 내장 <strong>데모 시뮬레이션 데이터</strong>로 동작합니다. 발급받은 키와 URL을 입력하면 즉시 실시간 공공데이터와 구글 시트에 연동됩니다.
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">1. Google Apps Script 웹 앱 URL (구글 시트 DB)</label>
+          <input type="url" id="settingGasUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs focus:border-indigo-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">2. 공공데이터포털 TAGO 일반 인증키 (Decoding)</label>
+          <input type="text" id="settingTagoKey" placeholder="공공데이터포털에서 발급받은 인증키 입력" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs focus:border-indigo-500 focus:outline-none" />
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button onclick="resetDemoSettings()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50">
+            데모 초기화
+          </button>
+          <button onclick="saveSettings()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm">
+            저장 및 실시간 연동 적용
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 토스트 메시지 박스 (alert 대체) -->
+  <div id="toastBox" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-xl bg-slate-900/95 text-white text-xs font-semibold shadow-lg transition-opacity">
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. 전역 상태 및 원주시 흥업면 기준 데이터 설정
+     * ============================================================================
+     */
+    const CITY_CODE_WONJU = '32020'; // 공공데이터포털 TAGO 강원 원주시 코드
+
+    // 흥업 주요 정류장 목록 (실제 TAGO nodeId로 교체 가능)
+    const BUS_STOPS = [
+      { id: 'WJB251000101', name: '연세대 정문', desc: '원주역·시내 방면' },
+      { id: 'WJB251000102', name: '한라대 정문', desc: '터미널·단계동 방면' },
+      { id: 'WJB251000103', name: '강릉원주대 정문', desc: '원주역·만종역 방면' },
+      { id: 'WJB251000104', name: '흥업사거리', desc: '시내 방면 환승' }
+    ];
+
+    // 목적지별 예상 택시 요금 (원)
+    const FARE_TABLE = {
+      '원주역': 11000,
+      '만종역': 12000,
+      '원주시외버스터미널': 9500,
+      '단계동/시내': 9000
+    };
+
+    // 앱 상태 객체
+    let state = {
+      selectedStopId: BUS_STOPS[0].id,
+      statusFilter: 'OPEN', // 'OPEN' | 'ALL'
+      destFilter: 'ALL',
+      gasUrl: localStorage.getItem('heungeop_gas_url') || '',
+      tagoKey: localStorage.getItem('heungeop_tago_key') || '',
+      joinedPotIds: JSON.parse(localStorage.getItem('heungeop_joined_ids') || '[]'),
+      currentBuses: [],
+      pots: []
+    };
+
+    /**
+     * ============================================================================
+     * 2. 초기화 및 UI 렌더링 루프
+     * ============================================================================
+     */
+    window.onload = function () {
+      updateModeBadge();
+      setDefaultTimeInput();
+      renderStopButtons();
+      refreshBusInfo();
+      loadTaxiPots();
+    };
+
+    function updateModeBadge() {
+      const badge = document.getElementById('modeBadge');
+      if (state.gasUrl || state.tagoKey) {
+        badge.textContent = '실시간 연동됨';
+        badge.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200';
+      } else {
+        badge.textContent = '데모 모드';
+        badge.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200';
+      }
+    }
+
+    function setDefaultTimeInput() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 15);
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('inputTargetTime').value = `${hh}:${mm}`;
+    }
+
+    /**
+     * ============================================================================
+     * 3. ① 공공데이터포털(TAGO) 실시간 버스 도착 정보 로직
+     * ============================================================================
+     */
+    function renderStopButtons() {
+      const container = document.getElementById('stopSelector');
+      container.innerHTML = BUS_STOPS.map(stop => {
+        const isSelected = stop.id === state.selectedStopId;
+        return `
+          <button onclick="selectStop('${stop.id}')"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex flex-col items-start border ${
+              isSelected
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }">
+            <span>${stop.name}</span>
+            <span class="text-[10px] font-normal ${isSelected ? 'text-slate-300' : 'text-slate-400'}">${stop.desc}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectStop(stopId) {
+      state.selectedStopId = stopId;
+      renderStopButtons();
+      refreshBusInfo();
+    }
+
+    async function refreshBusInfo() {
+      const icon = document.getElementById('busRefreshIcon');
+      icon.classList.add('animate-spin');
+
+      let buses = [];
+      try {
+        if (state.tagoKey) {
+          // 실제 TAGO API 호출
+          const url = `https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList?serviceKey=${encodeURIComponent(state.tagoKey)}&cityCode=${CITY_CODE_WONJU}&nodeId=${state.selectedStopId}&_type=json`;
+          const res = await fetch(url);
+          const json = await res.json();
+          const items = json?.response?.body?.items?.item || [];
+          const list = Array.isArray(items) ? items : [items];
+
+          buses = list.map(b => ({
+            routeNo: b.routeno,
+            arrTimeMin: Math.max(1, Math.ceil(Number(b.arrtime) / 60)),
+            prevStationCnt: Number(b.arrprevstationcnt),
+            dest: '원주역·시내 방면'
+          })).sort((a, b) => a.arrTimeMin - b.arrTimeMin);
+        } else {
+          // 데모 시뮬레이션 데이터 (배차 간격 긴 상황 시연 포함)
+          await new Promise(r => setTimeout(r, 300));
+          buses = getMockBusData(state.selectedStopId);
+        }
+      } catch (err) {
+        console.error('TAGO API 호출 오류:', err);
+        showToast('버스 API 호출 실패로 데모 데이터를 표시합니다.');
+        buses = getMockBusData(state.selectedStopId);
+      } finally {
+        icon.classList.remove('animate-spin');
+      }
+
+      renderBusCards(buses);
+    }
+
+    function getMockBusData(stopId) {
+      const mockMap = {
+        'WJB251000101': [
+          { routeNo: '30', arrTimeMin: 26, prevStationCnt: 14, dest: '원주역 · 시내 방면' },
+          { routeNo: '34', arrTimeMin: 38, prevStationCnt: 19, dest: '시외버스터미널 방면' }
+        ],
+        'WJB251000102': [
+          { routeNo: '34-1', arrTimeMin: 8, prevStationCnt: 4, dest: '단계동 · 터미널 방면' },
+          { routeNo: '31', arrTimeMin: 24, prevStationCnt: 12, dest: '원주역 방면' }
+        ],
+        'WJB251000103': [
+          { routeNo: '51', arrTimeMin: 29, prevStationCnt: 15, dest: '만종역 · 시내 방면' }
+        ],
+        'WJB251000104': [
+          { routeNo: '30', arrTimeMin: 12, prevStationCnt: 6, dest: '원주역 방면' },
+          { routeNo: '55', arrTimeMin: 22, prevStationCnt: 11, dest: '시내 방면' }
+        ]
+      };
+      return mockMap[stopId] || mockMap['WJB251000101'];
+    }
+
+    function renderBusCards(buses) {
+      state.currentBuses = buses || [];
+      const container = document.getElementById('busListContainer');
+      const alertBanner = document.getElementById('taxiAlertBanner');
+      const alertText = document.getElementById('taxiAlertText');
+
+      if (!buses || buses.length === 0) {
+        container.innerHTML = `
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+            현재 도착 예정인 버스 정보가 없습니다. (막차 종료 또는 배차 대기)
+          </div>
+        `;
+        alertBanner.classList.remove('hidden');
+        alertText.textContent = '현재 운행 중인 버스가 없습니다! 택시 동승 팟을 모집해 안전하게 이동하세요.';
+        return;
+      }
+
+      container.innerHTML = buses.map(bus => {
+        const isLongWait = bus.arrTimeMin >= 20;
+        return `
+          <div class="flex items-center justify-between p-3 rounded-xl border ${isLongWait ? 'bg-rose-50/50 border-rose-200' : 'bg-slate-50 border-slate-200/70'}">
+            <div class="flex items-center gap-3">
+              <span class="px-2.5 py-1 rounded-lg font-extrabold text-sm ${isLongWait ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}">
+                ${bus.routeNo}번
+              </span>
+              <div>
+                <p class="text-xs font-bold text-slate-800">${bus.dest}</p>
+                <p class="text-[11px] text-slate-500">${bus.prevStationCnt}정거장 전</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-extrabold ${isLongWait ? 'text-rose-600' : 'text-emerald-700'}">
+                ${bus.arrTimeMin}분 후 도착
+              </span>
+              ${isLongWait ? '<span class="block text-[10px] font-bold text-rose-500">배차 대기 길음</span>' : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 2단계 기능: 가장 빠른 버스가 20분 이상 남았을 때 택시 팟 유도 배너 노출
+      const fastestMin = buses[0].arrTimeMin;
+      if (fastestMin >= 20) {
+        const currentStop = BUS_STOPS.find(s => s.id === state.selectedStopId)?.name || '연세대 정문';
+        alertBanner.classList.remove('hidden');
+        alertText.textContent = `다음 버스(${buses[0].routeNo}번)까지 ${fastestMin}분 남았습니다! 지금 '${currentStop}' 출발 택시 팟을 모으면 1인당 약 2,750원에 이동할 수 있어요.`;
+      } else {
+        alertBanner.classList.add('hidden');
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 3-1. Vercel Serverless Function (/api/plan) 호출
+     * ============================================================================
+     */
+    async function requestAiPlan() {
+      const btn = document.getElementById('aiPlanBtn');
+      const box = document.getElementById('aiPlanBox');
+      const currentStop = BUS_STOPS.find(s => s.id === state.selectedStopId)?.name || '연세대 정문';
+      const targetDest = state.destFilter === 'ALL' ? '원주역' : state.destFilter;
+      const openPots = state.pots
+        .filter(p => p.status === '모집중')
+        .map(p => ({
+          departure: p.departure,
+          destination: p.destination,
+          target_time: p.target_time,
+          remain: Number(p.max_people) - Number(p.current_people)
+        }));
+
+      btn.disabled = true;
+      btn.textContent = '분석 중...';
+      box.classList.remove('hidden');
+      box.textContent = '🤖 실시간 버스 배차와 택시 팟 현황을 분석하고 있습니다...';
+
+      try {
+        const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        const res = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stopName: currentStop,
+            destination: targetDest,
+            buses: state.currentBuses,
+            openPots,
+            currentTime: nowStr
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          box.textContent = data.plan;
+        } else {
+          throw new Error(data.message || 'API 호출 실패');
+        }
+      } catch (err) {
+        console.warn('/api/plan 호출 실패 (로컬 미리보기 환경 등):', err);
+        const fastest = state.currentBuses[0]?.arrTimeMin;
+        if (fastest && fastest >= 20) {
+          box.textContent = `🚕 현재 '${currentStop}' 기준 다음 버스까지 ${fastest}분이나 남았어요!\n아래 모집 중인 택시 팟에 합류하거나 새 팟을 열면 1인당 약 2,750원으로 훨씬 빠르게 탈출할 수 있습니다.`;
+        } else {
+          box.textContent = `🚌 곧 도착하는 버스가 있어 가성비 좋게 이동할 수 있어요!\n만약 열차 시간이 촉박하다면 아래 '${targetDest}' 방면 택시 팟을 확인해보세요.`;
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '다시 추천받기';
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 4. ② 구글 시트 기반 택시 동승 모집 게시판 로직 (CRUD)
+     * ============================================================================
+     */
+    function getInitialDemoPots() {
+      const now = new Date();
+      const formatTime = (addMin) => {
+        const d = new Date(now.getTime() + addMin * 60000);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+
+      return [
+        {
+          id: 'POT_DEMO_1',
+          created_at: '방금 전',
+          departure: '연세대 정문',
+          destination: '원주역',
+          target_time: formatTime(15),
+          max_people: 4,
+          current_people: 3,
+          contact_link: 'https://open.kakao.com/o/heungeop_demo1',
+          status: '모집중'
+        },
+        {
+          id: 'POT_DEMO_2',
+          created_at: '5분 전',
+          departure: '한라대 정문',
+          destination: '원주시외버스터미널',
+          target_time: formatTime(25),
+          max_people: 4,
+          current_people: 2,
+          contact_link: 'https://open.kakao.com/o/heungeop_demo2',
+          status: '모집중'
+        },
+        {
+          id: 'POT_DEMO_3',
+          created_at: '18분 전',
+          departure: '강릉원주대 정문',
+          destination: '만종역',
+          target_time: formatTime(10),
+          max_people: 4,
+          current_people: 4,
+          contact_link: 'https://open.kakao.com/o/heungeop_demo3',
+          status: '마감'
+        }
+      ];
+    }
+
+    async function loadTaxiPots() {
+      const container = document.getElementById('potListContainer');
+      container.innerHTML = `
+        <div class="p-8 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
+          동승 팟 목록을 불러오는 중입니다...
+        </div>
+      `;
+
+      try {
+        if (state.gasUrl) {
+          const res = await fetch(state.gasUrl);
+          const json = await res.json();
+          if (json.status === 'success' && Array.isArray(json.data)) {
+            state.pots = json.data;
+          } else {
+            throw new Error('시트 응답 형식 오류');
+          }
+        } else {
+          if (state.pots.length === 0) {
+            state.pots = getInitialDemoPots();
+          }
+        }
+      } catch (err) {
+        console.error('구글 시트 조회 실패:', err);
+        showToast('시트 조회 실패로 데모 목록을 표시합니다.');
+        if (state.pots.length === 0) {
+          state.pots = getInitialDemoPots();
+        }
+      }
+
+      renderTaxiPots();
+    }
+
+    function renderTaxiPots() {
+      const container = document.getElementById('potListContainer');
+      const countBadge = document.getElementById('potCountBadge');
+
+      const filtered = state.pots.filter(pot => {
+        const matchStatus = state.statusFilter === 'ALL' || pot.status === '모집중';
+        const matchDest = state.destFilter === 'ALL' || pot.destination === state.destFilter;
+        return matchStatus && matchDest;
+      });
+
+      const openCount = state.pots.filter(p => p.status === '모집중').length;
+      countBadge.textContent = `모집중 ${openCount}건`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 space-y-2">
+            <p class="text-sm font-bold text-slate-700">조건에 맞는 택시 팟이 없습니다 🚕</p>
+            <p class="text-xs text-slate-400">우측 하단 '택시 팟 모집하기' 버튼으로 첫 번째 팟을 열어보세요!</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(pot => {
+        const isClosed = pot.status !== '모집중' || Number(pot.current_people) >= Number(pot.max_people);
+        const isJoined = state.joinedPotIds.includes(pot.id);
+        const totalFare = FARE_TABLE[pot.destination] || 10000;
+        const perPersonFare = Math.round(totalFare / Number(pot.max_people)).toLocaleString();
+        const remainSeats = Math.max(0, Number(pot.max_people) - Number(pot.current_people));
+
+        return `
+          <article class="bg-white rounded-2xl p-4 sm:p-5 border transition ${isClosed ? 'border-slate-200/70 opacity-75' : 'border-slate-200 shadow-xs hover:border-indigo-300'}">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold ${
+                  isClosed ? 'bg-slate-200 text-slate-600' : 'bg-indigo-100 text-indigo-700'
+                }">
+                  ${isClosed ? '마감됨' : `모집중 · ${remainSeats}자리 남음`}
+                </span>
+                <span class="text-sm font-extrabold text-slate-900">
+                  ⏰ ${pot.target_time} 출발
+                </span>
+              </div>
+              <span class="text-[11px] font-semibold text-slate-400">
+                1인당 약 ${perPersonFare}원
+              </span>
+            </div>
+
+            <div class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-800 bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100">
+              <span class="text-indigo-600">📍 ${pot.departure}</span>
+              <span class="text-slate-400">→</span>
+              <span class="text-slate-900">🏁 ${pot.destination}</span>
+            </div>
+
+            <div class="mt-3.5 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold text-slate-600">
+                  인원 ${pot.current_people} / ${pot.max_people}명
+                </span>
+                <div class="flex gap-1 ml-1">
+                  ${Array.from({ length: Number(pot.max_people) }).map((_, idx) => `
+                    <span class="w-2.5 h-2.5 rounded-full ${idx < Number(pot.current_people) ? 'bg-indigo-600' : 'bg-slate-200'}"></span>
+                  `).join('')}
+                </div>
+              </div>
+
+              ${
+                isJoined
+                  ? `<button onclick="showContactModal('${String(pot.contact_link).replace(/'/g, "\\'")}')"
+                      class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition">
+                      채팅방 링크 보기
+                    </button>`
+                  : isClosed
+                    ? `<button disabled class="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold cursor-not-allowed">
+                        모집 마감
+                      </button>`
+                    : `<button onclick="joinTaxiPot('${pot.id}')"
+                        class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold shadow-xs active:scale-95 transition">
+                        함께 타기 +1
+                      </button>`
+              }
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function handleCreatePot(event) {
+      event.preventDefault();
+      const btn = document.getElementById('submitPotBtn');
+      const departure = document.getElementById('inputDeparture').value;
+      const destination = document.getElementById('inputDestination').value;
+      const target_time = document.getElementById('inputTargetTime').value;
+      const max_people = Number(document.getElementById('inputMaxPeople').value);
+      const contact_link = document.getElementById('inputContact').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = '등록 중...';
+
+      try {
+        if (state.gasUrl) {
+          const res = await fetch(state.gasUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'create',
+              departure,
+              destination,
+              target_time,
+              max_people,
+              contact_link
+            })
+          });
+          const json = await res.json();
+          if (json.status !== 'success') {
+            throw new Error(json.message || '등록 실패');
+          }
+          if (json.id) markPotAsJoined(json.id);
+          await loadTaxiPots();
+        } else {
+          const newId = 'POT_' + Date.now();
+          state.pots.unshift({
+            id: newId,
+            created_at: '방금 전',
+            departure,
+            destination,
+            target_time,
+            max_people,
+            current_people: 1,
+            contact_link,
+            status: '모집중'
+          });
+          markPotAsJoined(newId);
+          renderTaxiPots();
+        }
+
+        closeCreateModal();
+        document.getElementById('inputContact').value = '';
+        showToast('택시 팟이 성공적으로 등록되었습니다!');
+      } catch (err) {
+        console.error('택시 팟 등록 오류:', err);
+        showToast('등록 중 오류가 발생했습니다. 설정을 확인해주세요.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '등록 완료하기';
+      }
+    }
+
+    // 동승 참여 처리 (2단계 기능: 인원 +1 및 자동 마감)
+    async function joinTaxiPot(potId) {
+      const pot = state.pots.find(p => p.id === potId);
+      if (!pot) return;
+
+      try {
+        if (state.gasUrl) {
+          showToast('동승 참여 처리 중...');
+          const res = await fetch(state.gasUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'join', id: potId })
+          });
+          const json = await res.json();
+          if (json.status !== 'success') {
+            showToast(json.message || '참여할 수 없는 팟입니다.');
+            await loadTaxiPots();
+            return;
+          }
+          await loadTaxiPots();
+        } else {
+          // 데모 모드 즉시 반영
+          if (pot.status !== '모집중' || pot.current_people >= pot.max_people) {
+            showToast('이미 마감된 팟입니다.');
+            return;
+          }
+          pot.current_people += 1;
+          if (pot.current_people >= pot.max_people) {
+            pot.status = '마감';
+          }
+          renderTaxiPots();
+        }
+
+        markPotAsJoined(potId);
+        showContactModal(pot.contact_link);
+      } catch (err) {
+        console.error(err);
+        showToast('참여 처리 중 오류가 발생했습니다.');
+      }
+    }
+
+    function markPotAsJoined(potId) {
+      if (!state.joinedPotIds.includes(potId)) {
+        state.joinedPotIds.push(potId);
+        localStorage.setItem('heungeop_joined_ids', JSON.stringify(state.joinedPotIds));
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 5. 필터, 모달 제어 및 유틸리티
+     * ============================================================================
+     */
+    function setFilter(filterType) {
+      state.statusFilter = filterType;
+      const openBtn = document.getElementById('filterOpenBtn');
+      const allBtn = document.getElementById('filterAllBtn');
+
+      if (filterType === 'OPEN') {
+        openBtn.className = 'text-xs font-bold px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition';
+        allBtn.className = 'text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
+      } else {
+        allBtn.className = 'text-xs font-bold px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition';
+        openBtn.className = 'text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
+      }
+      renderTaxiPots();
+    }
+
+    function setDestFilter(dest) {
+      state.destFilter = dest;
+      document.querySelectorAll('.dest-chip').forEach(btn => {
+        if (btn.dataset.dest === dest) {
+          btn.className = 'dest-chip active px-3 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-white whitespace-nowrap transition';
+        } else {
+          btn.className = 'dest-chip px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap transition';
+        }
+      });
+      renderTaxiPots();
+    }
+
+    function updateFareEstimate() {
+      const dest = document.getElementById('inputDestination').value;
+      const maxPeople = Number(document.getElementById('inputMaxPeople').value);
+      const total = FARE_TABLE[dest] || 10000;
+      const perPerson = Math.round(total / maxPeople).toLocaleString();
+      document.getElementById('fareEstimateText').textContent =
+        `💡 예상 총 요금 약 ${total.toLocaleString()}원 (${maxPeople}인 탑승 시 1인당 약 ${perPerson}원)`;
+    }
+
+    function openCreateModal() {
+      updateFareEstimate();
+      const modal = document.getElementById('createModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function openCreateModalWithPreset() {
+      const currentStop = BUS_STOPS.find(s => s.id === state.selectedStopId)?.name;
+      const select = document.getElementById('inputDeparture');
+      for (let opt of select.options) {
+        if (opt.value === currentStop) {
+          select.value = currentStop;
+          break;
+        }
+      }
+      openCreateModal();
+    }
+
+    function closeCreateModal() {
+      const modal = document.getElementById('createModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function showContactModal(contactLink) {
+      const textEl = document.getElementById('joinedContactText');
+      const anchorEl = document.getElementById('openChatAnchor');
+      textEl.textContent = contactLink;
+
+      if (contactLink.startsWith('http://') || contactLink.startsWith('https://')) {
+        anchorEl.href = contactLink;
+        anchorEl.classList.remove('hidden');
+      } else {
+        anchorEl.classList.add('hidden');
+      }
+
+      const modal = document.getElementById('joinSuccessModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeJoinModal() {
+      const modal = document.getElementById('joinSuccessModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyContactLink() {
+      const text = document.getElementById('joinedContactText').textContent;
+      const tempInput = document.createElement('input');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      showToast('링크/연락처가 클립보드에 복사되었습니다!');
+    }
+
+    // 연동 설정 모달 제어
+    function openSettingsModal() {
+      document.getElementById('settingGasUrl').value = state.gasUrl;
+      document.getElementById('settingTagoKey').value = state.tagoKey;
+      const modal = document.getElementById('settingsModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSettingsModal() {
+      const modal = document.getElementById('settingsModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveSettings() {
+      state.gasUrl = document.getElementById('settingGasUrl').value.trim();
+      state.tagoKey = document.getElementById('settingTagoKey').value.trim();
+      localStorage.setItem('heungeop_gas_url', state.gasUrl);
+      localStorage.setItem('heungeop_tago_key', state.tagoKey);
+
+      updateModeBadge();
+      closeSettingsModal();
+      showToast('연동 설정이 저장되었습니다. 데이터를 새로고침합니다.');
+      refreshBusInfo();
+      loadTaxiPots();
+    }
+
+    function resetDemoSettings() {
+      state.gasUrl = '';
+      state.tagoKey = '';
+      localStorage.removeItem('heungeop_gas_url');
+      localStorage.removeItem('heungeop_tago_key');
+      document.getElementById('settingGasUrl').value = '';
+      document.getElementById('settingTagoKey').value = '';
+
+      updateModeBadge();
+      closeSettingsModal();
+      showToast('데모 모드로 초기화되었습니다.');
+      refreshBusInfo();
+      state.pots = getInitialDemoPots();
+      renderTaxiPots();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastBox');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
